@@ -1,0 +1,40 @@
+name: Modal – Init & Prepare Weights
+on:
+  workflow_dispatch: {}
+
+jobs:
+  init_prepare:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Modal CLI
+        run: pip install --upgrade modal
+
+      - name: Auth to Modal
+        run: |
+          modal token set --token-id "$MODAL_TOKEN_ID" --token-secret "$MODAL_TOKEN_SECRET" --no-verify
+        env:
+          MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
+          MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
+
+      - name: Create/Update Modal Secret hf-token from GH secret
+        run: |
+          modal secret create hf-token HF_TOKEN="${HF_TOKEN}" --force
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+
+      - name: Create Volumes (idempotent)
+        run: |
+          modal volume create wan21-weights || true
+          modal volume create wan21-outputs || true
+
+      - name: Preload WAN weights into Volume
+        run: |
+          modal run modal_app/01_prepare_weights.py::download_weights

@@ -1,8 +1,21 @@
-name: Modal – Deploy WAN API
+name: Modal – Desplegar API de WAN
 on:
   push:
     branches: [ "main" ]
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      wan_model_id:
+        description: "Identificador del checkpoint en Hugging Face (WAN_MODEL_ID)."
+        required: false
+        default: "Wan-AI/Wan2.1-T2V-1.3B-Diffusers"
+      wan_gpu_type:
+        description: "Tipo de GPU para Modal (WAN_GPU_TYPE)."
+        required: false
+        default: "A10G"
+      wan_video_fps:
+        description: "FPS por defecto para los videos generados (WAN_VIDEO_FPS)."
+        required: false
+        default: "16"
 
 jobs:
   deploy:
@@ -16,16 +29,20 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install Modal CLI
+      - name: Instalar Modal CLI
         run: pip install --upgrade modal
 
-      - name: Auth to Modal
+      - name: Autenticarse en Modal
         run: |
           modal token set --token-id "$MODAL_TOKEN_ID" --token-secret "$MODAL_TOKEN_SECRET" --no-verify
         env:
           MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
           MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
 
-      - name: Deploy ASGI endpoint on GPU
+      - name: Desplegar el endpoint ASGI en GPU
+        env:
+          WAN_MODEL_ID: ${{ github.event.inputs.wan_model_id || 'Wan-AI/Wan2.1-T2V-1.3B-Diffusers' }}
+          WAN_GPU_TYPE: ${{ github.event.inputs.wan_gpu_type || 'A10G' }}
+          WAN_VIDEO_FPS: ${{ github.event.inputs.wan_video_fps || '16' }}
         run: |
-          WAN_MODEL_ID="Wan-AI/Wan2.1-T2V-1.3B-Diffusers" modal deploy modal_app/02_wan_api.py
+          modal deploy modal_app/02_wan_api.py

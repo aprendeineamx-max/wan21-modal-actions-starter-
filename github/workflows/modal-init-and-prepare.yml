@@ -1,6 +1,11 @@
-name: Modal – Init & Prepare Weights
+name: Modal – Inicializar y Preparar Pesos
 on:
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      wan_model_id:
+        description: "Identificador del checkpoint en Hugging Face (WAN_MODEL_ID)."
+        required: false
+        default: "Wan-AI/Wan2.1-T2V-1.3B-Diffusers"
 
 jobs:
   init_prepare:
@@ -14,27 +19,29 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install Modal CLI
+      - name: Instalar Modal CLI
         run: pip install --upgrade modal
 
-      - name: Auth to Modal
+      - name: Autenticarse en Modal
         run: |
           modal token set --token-id "$MODAL_TOKEN_ID" --token-secret "$MODAL_TOKEN_SECRET" --no-verify
         env:
           MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
           MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
 
-      - name: Create/Update Modal Secret hf-token from GH secret
+      - name: Crear o actualizar el secreto hf-token en Modal
         run: |
           modal secret create hf-token HF_TOKEN="${HF_TOKEN}" --force
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
 
-      - name: Create Volumes (idempotent)
+      - name: Crear volúmenes (idempotente)
         run: |
           modal volume create wan21-weights || true
           modal volume create wan21-outputs || true
 
-      - name: Preload WAN weights into Volume
+      - name: Precargar los pesos de WAN en el Volumen
+        env:
+          WAN_MODEL_ID: ${{ github.event.inputs.wan_model_id || 'Wan-AI/Wan2.1-T2V-1.3B-Diffusers' }}
         run: |
           modal run modal_app/01_prepare_weights.py::download_weights
